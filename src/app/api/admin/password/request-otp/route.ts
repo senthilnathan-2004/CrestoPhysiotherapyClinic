@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
 
     const result = await sendEmail({
       to: admin.email,
-      subject: sanitizeHeader("Sugam Clinic - Admin Password Reset Code"),
+      subject: sanitizeHeader("Cresto Physiotherapy Clinic - Admin Password Reset Code"),
       html: renderEmail({
         title: "Your password reset code",
         previewText: "Use this code to reset your admin password",

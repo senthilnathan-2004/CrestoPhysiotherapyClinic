@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
     // Best-effort confirmation email (don't fail the reset if it errors).
     sendEmail({
       to: admin.email,
-      subject: sanitizeHeader("Sugam Clinic - Admin Password Changed"),
+      subject: sanitizeHeader("Cresto Physiotherapy Clinic - Admin Password Changed"),
       html: renderEmail({
         title: "Your password was changed",
         previewText: "Your admin password has been updated",

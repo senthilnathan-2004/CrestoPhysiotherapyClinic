@@ -22,8 +22,10 @@ export default function AdminReviewsPage() {
   });
 
   useEffect(() => {
-    fetchReviews();
-  }, []);
+    if (!reviews || reviews.length === 0) {
+      fetchReviews();
+    }
+  }, [reviews]);
 
   const fetchReviews = () => {
     setLoading(true);

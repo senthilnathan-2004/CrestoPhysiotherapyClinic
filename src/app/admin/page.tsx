@@ -1,5 +1,4 @@
 import React from "react";
-import { unstable_cache } from "next/cache";
 import { connectToDatabase } from "@/lib/db";
 import Appointment from "@/models/Appointment";
 import Review from "@/models/Review";
@@ -11,85 +10,80 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-// Dashboard stats run 11 Atlas queries. Caching the result for 30s means
-// repeat navigations to /admin return instantly instead of re-querying on
-// every click. Admin mutations don't need this real-time; 30s staleness is
-// fine for an overview screen. Returns fully-serialized plain data (no Mongoose
-// docs / ObjectIds) so it's safe to cache and pass to the client.
-const getDashboardData = unstable_cache(
-  async () => {
-    await connectToDatabase();
+// Dashboard stats run 11 Atlas queries.
+async function getDashboardData() {
+  await Promise.race([
+    connectToDatabase(),
+    new Promise<any>((_, reject) => setTimeout(() => reject(new Error("Database connection timeout")), 5000))
+  ]);
 
-    const [
-      totalAppts,
-      pendingAppts,
-      completedAppts,
-      totalRevs,
-      totalMsgs,
-      totalPatientsRes,
-      newPatientsRes,
-      returningPatientsRes,
-      recentApptsRes,
-      recentMsgsRes,
-      topReasonsRes,
-    ] = await Promise.all([
-      Appointment.countDocuments(),
-      Appointment.countDocuments({ status: "Pending" }),
-      Appointment.countDocuments({ status: "Completed" }),
-      Review.countDocuments(),
-      ContactMessage.countDocuments({ status: "Unread" }),
-      Patient.countDocuments(),
-      Patient.countDocuments({ totalVisits: { $lte: 1 } }),
-      Patient.countDocuments({ totalVisits: { $gte: 2 } }),
-      Appointment.find().populate("doctor", "name").sort({ createdAt: -1 }).limit(5).lean(),
-      ContactMessage.find().sort({ createdAt: -1 }).limit(5).lean(),
-      // Top chief complaints. Ignores legacy rows with no visit reason.
-      Appointment.aggregate([
-        { $match: { visitReason: { $nin: [null, ""] } } },
-        { $group: { _id: "$visitReason", count: { $sum: 1 } } },
-        { $sort: { count: -1 } },
-        { $limit: 6 },
-      ]),
-    ]);
+  const [
+    totalAppts,
+    pendingAppts,
+    completedAppts,
+    totalRevs,
+    totalMsgs,
+    totalPatientsRes,
+    newPatientsRes,
+    returningPatientsRes,
+    recentApptsRes,
+    recentMsgsRes,
+    topReasonsRes,
+  ] = await Promise.all([
+    Appointment.countDocuments(),
+    Appointment.countDocuments({ status: "Pending" }),
+    Appointment.countDocuments({ status: "Completed" }),
+    Review.countDocuments(),
+    ContactMessage.countDocuments({ status: "Unread" }),
+    Patient.countDocuments(),
+    Patient.countDocuments({ totalVisits: { $lte: 1 } }),
+    Patient.countDocuments({ totalVisits: { $gte: 2 } }),
+    Appointment.find().populate("doctor", "name").sort({ createdAt: -1 }).limit(5).lean(),
+    ContactMessage.find().sort({ createdAt: -1 }).limit(5).lean(),
+    // Top chief complaints. Ignores legacy rows with no visit reason.
+    Appointment.aggregate([
+      { $match: { visitReason: { $nin: [null, ""] } } },
+      { $group: { _id: "$visitReason", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 6 },
+    ]),
+  ]);
 
-    return {
-      stats: {
-        totalAppointments: totalAppts,
-        pendingAppointments: pendingAppts,
-        completedAppointments: completedAppts,
-        totalReviews: totalRevs,
-        totalMessages: totalMsgs,
-        totalPatients: totalPatientsRes,
-        newPatients: newPatientsRes,
-        returningPatients: returningPatientsRes,
-      },
-      recentAppointments: (recentApptsRes as any[]).map((a) => ({
-        _id: a._id?.toString() || "",
-        patient: a.patient ? a.patient.toString() : null,
-        name: a.name || "",
-        phone: a.phone || "",
-        date: a.date || "",
-        time: a.time || "",
-        doctorName: a.doctor?.name || null,
-        visitReason: a.visitReason || "",
-        status: a.status || "",
-      })),
-      recentMessages: (recentMsgsRes as any[]).map((m) => ({
-        _id: m._id?.toString() || "",
-        name: m.name || "",
-        phone: m.phone || "",
-        message: m.message || "",
-        createdAt: m.createdAt ? new Date(m.createdAt).toISOString() : "",
-      })),
-      topVisitReasons: (topReasonsRes as any[]).map((r) => ({
-        reason: r._id,
-        count: r.count,
-      })),
-    };
-  },
-  ["admin-dashboard-data"],
-  { revalidate: 30, tags: ["admin-dashboard"] }
-);
+  return {
+    stats: {
+      totalAppointments: totalAppts,
+      pendingAppointments: pendingAppts,
+      completedAppointments: completedAppts,
+      totalReviews: totalRevs,
+      totalMessages: totalMsgs,
+      totalPatients: totalPatientsRes,
+      newPatients: newPatientsRes,
+      returningPatients: returningPatientsRes,
+    },
+    recentAppointments: (recentApptsRes as any[]).map((a) => ({
+      _id: a._id?.toString() || "",
+      patient: a.patient ? a.patient.toString() : null,
+      name: a.name || "",
+      phone: a.phone || "",
+      date: a.date || "",
+      time: a.time || "",
+      doctorName: a.doctor?.name || null,
+      visitReason: a.visitReason || "",
+      status: a.status || "",
+    })),
+    recentMessages: (recentMsgsRes as any[]).map((m) => ({
+      _id: m._id?.toString() || "",
+      name: m.name || "",
+      phone: m.phone || "",
+      message: m.message || "",
+      createdAt: m.createdAt ? new Date(m.createdAt).toISOString() : "",
+    })),
+    topVisitReasons: (topReasonsRes as any[]).map((r) => ({
+      reason: r._id,
+      count: r.count,
+    })),
+  };
+}
 
 export default async function AdminDashboardPage() {
   let stats = {
