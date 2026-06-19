@@ -50,8 +50,9 @@ export default function Hero({ settings, lang }: HeroProps) {
             <span>{t.heroBadge}</span>
           </div>
 
+          {/* Heading */}
           <h1
-            className="font-heading font-bold text-3xl sm:text-5xl lg:text-6xl text-brand-ink leading-[1.2] sm:leading-[1.15] tracking-tight mb-4 sm:mb-6"
+            className="font-heading font-bold text-4xl sm:text-5xl lg:text-6xl text-brand-ink leading-[1.2] sm:leading-[1.15] tracking-tight mb-4 sm:mb-6"
           >
             {t.heroTitlePrefix}
             <span className="text-orange-500 font-extrabold relative inline-block">
